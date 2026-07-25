@@ -191,6 +191,17 @@
   .seg button .s { font-family: var(--font-round); font-size: 1rem; }
   .seg button.on.f { border-color: var(--rose); background: var(--rose-soft); color: var(--rose-deep); }
   .seg button.on.m { border-color: var(--teal); background: var(--teal-soft); color: var(--teal-deep); }
+  .switch { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .switch .track { width: 48px; height: 28px; border-radius: 99px; background: var(--line); position: relative; transition: background .2s ease; flex: none; }
+  .switch.on .track { background: var(--teal); }
+  .switch .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 99px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .2s ease; }
+  .switch.on .knob { left: 23px; }
+  .switch .lbl { font-size: .92rem; font-weight: 700; }
+  .switch .lbl small { display: block; font-size: .72rem; color: var(--ink-soft); font-weight: 500; margin-top: 1px; }
+  .stepper { display: flex; gap: 8px; margin-top: 9px; }
+  .stepper button { flex: 1; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 11px; padding: 10px; font-family: var(--font-round); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+  .stepper button:active { background: var(--teal-soft); }
+  .unit-tag { font-size: .64rem; color: var(--teal-deep); background: var(--teal-soft); padding: 1px 7px; border-radius: 99px; font-weight: 600; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
   .sheet-actions { display: flex; gap: 10px; margin-top: 22px; }
   .btn { flex: 1; border: none; border-radius: 14px; padding: 14px; font-size: .98rem; font-weight: 700; font-family: var(--font-body); cursor: pointer; transition: transform .1s ease; }
   .btn:active { transform: scale(.98); }
@@ -284,7 +295,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var WLABEL = { m: "♂の財布", f: "♀の財布" };
   var WSYM = { m: "♂", f: "♀" };
-  var destChips = ["家賃・住宅ローン", "カード引き落とし", "光熱費・通信", "生活費", "貯金", "教育費", "保険"];
+  function fmtDT(ts) { if (!ts) return ""; var d = new Date(ts); var mm = ("0" + d.getMinutes()).slice(-2); return (d.getMonth() + 1) + "月" + d.getDate() + "日 " + d.getHours() + ":" + mm; }
+  var destChips = ["（♀）群馬銀行", "（♂）群馬銀行", "（♀）ゆうちょ銀行", "（♂）ゆうちょ銀行", "生活費口座", "貯金"];
 
   var state = load();
 
@@ -295,11 +307,10 @@
     s.months[m] = {
       wallets: { m: { amount: 280000 }, f: { amount: 150000 } },
       allocations: [
-        { id: uid(), source: "m", dest: "家賃・住宅ローン", amount: 95000, done: false },
-        { id: uid(), source: "m", dest: "カード引き落とし", amount: 80000, done: false },
-        { id: uid(), source: "m", dest: "貯金", amount: 50000, done: false },
-        { id: uid(), source: "f", dest: "光熱費・通信", amount: 35000, done: false },
-        { id: uid(), source: "f", dest: "生活費", amount: 60000, done: false }
+        { id: uid(), source: "m", dest: "（♂）群馬銀行", amount: 180000, done: false, doneAt: null, round1000: true },
+        { id: uid(), source: "m", dest: "（♂）ゆうちょ銀行", amount: 45000, done: false, doneAt: null, round1000: true },
+        { id: uid(), source: "f", dest: "（♀）群馬銀行", amount: 95000, done: false, doneAt: null, round1000: true },
+        { id: uid(), source: "f", dest: "貯金", amount: 50000, done: false, doneAt: null, round1000: false }
       ]
     };
     return s;
@@ -333,7 +344,7 @@
       var w = { m: { amount: 0 }, f: { amount: 0 } }, a = [];
       if (prev) {
         w = { m: { amount: prev.wallets.m.amount }, f: { amount: prev.wallets.f.amount } };
-        prev.allocations.forEach(function (x) { a.push({ id: uid(), source: x.source, dest: x.dest, amount: x.amount, done: false }); });
+        prev.allocations.forEach(function (x) { a.push({ id: uid(), source: x.source, dest: x.dest, amount: x.amount, done: false, doneAt: null, round1000: !!x.round1000 }); });
       }
       state.months[key] = { wallets: w, allocations: a };
     }
@@ -422,7 +433,7 @@
       var list = document.createElement("div");
       list.className = "list";
       if (items.length === 0) {
-        list.innerHTML = '<div class="empty">「＋追加」で振り分け先を登録</div>';
+        list.innerHTML = '<div class="empty">「＋追加」で入金先を登録</div>';
       }
       items.forEach(function (x) {
         var el = document.createElement("div");
@@ -434,14 +445,16 @@
             '<div class="a-amt"><span class="yen">¥</span><span class="v"></span></div>' +
           '</div>' +
           '<button class="check ' + (x.done ? "ok" : "todo") + '">' +
-            (x.done ? svgCheck() + "振込ずみ" : svgCircle() + "この先へ振り込む") + '</button>';
+            (x.done ? svgCheck() + "入金ずみ" : svgDeposit() + "入金した！") + '</button>';
         el.querySelector(".a-ic").textContent = (x.dest || "先").slice(0, 1);
-        el.querySelector(".n").textContent = x.dest;
-        el.querySelector(".memo").textContent = x.done ? "振込ずみ" : "未振込";
+        var nEl = el.querySelector(".n");
+        nEl.textContent = x.dest;
+        if (x.round1000) { var tg = document.createElement("span"); tg.className = "unit-tag"; tg.textContent = "1000円単位"; nEl.appendChild(tg); }
+        el.querySelector(".memo").textContent = x.done ? (x.doneAt ? fmtDT(x.doneAt) + " に入金" : "入金ずみ") : "未入金";
         el.querySelector(".a-amt .v").textContent = comma(x.amount);
         el.querySelector(".a-top").addEventListener("click", function () { openSheet("alloc", x.id); });
         el.querySelector(".check").addEventListener("click", function (ev) {
-          ev.stopPropagation(); x.done = !x.done; save(); render();
+          ev.stopPropagation(); x.done = !x.done; x.doneAt = x.done ? Date.now() : null; save(); render();
         });
         list.appendChild(el);
       });
@@ -539,7 +552,7 @@
   }
 
   // ---- sheet ----
-  var sheetType = null, editId = null, formSource = "f";
+  var sheetType = null, editId = null, formSource = "f", formRound = true;
 
   function openSheet(type, id, presetSource) {
     sheetType = type; editId = (id != null ? id : null);
@@ -557,16 +570,20 @@
     } else if (type === "alloc") {
       var item = id ? findAlloc(id) : null;
       formSource = item ? item.source : (presetSource || "f");
-      $("sheetTitle").textContent = (id ? "編集" : "追加") + "・振り分け先";
+      formRound = item ? !!item.round1000 : true;
+      $("sheetTitle").textContent = (id ? "編集" : "追加") + "・入金先";
       body.innerHTML =
         '<div class="field"><label>どちらの財布から</label><div class="seg" id="segSrc">' +
           '<button type="button" data-s="f"><span class="s">♀</span>♀の財布</button>' +
           '<button type="button" data-s="m"><span class="s">♂</span>♂の財布</button></div></div>' +
-        '<div class="field"><label>支払い先・口座の名前</label>' +
-          '<input type="text" id="fName" placeholder="例：家賃・住宅ローン" autocomplete="off">' +
+        '<div class="field"><label>入金先（口座）の名前</label>' +
+          '<input type="text" id="fName" placeholder="例：（♀）群馬銀行" autocomplete="off">' +
           '<div class="chips" id="chips"></div></div>' +
-        '<div class="field"><label>この先へ入れる金額</label>' +
-          '<input type="text" id="fAmt" class="amt-input" inputmode="numeric" placeholder="0"></div>';
+        '<div class="field"><label>入金する金額</label>' +
+          '<input type="text" id="fAmt" class="amt-input" inputmode="numeric" placeholder="0">' +
+          '<div class="stepper" id="stepper"><button type="button" data-d="-1000">−1,000</button><button type="button" data-d="1000">＋1,000</button></div></div>' +
+        '<div class="field"><div class="switch" id="roundSw"><div class="track"><div class="knob"></div></div>' +
+          '<div class="lbl">ATMでの入金<small>金額を1000円単位にする</small></div></div></div>';
       var chips = $("chips");
       destChips.forEach(function (t) { var b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = t; b.addEventListener("click", function () { $("fName").value = t; }); chips.appendChild(b); });
       $("fName").value = item ? item.dest : "";
@@ -575,6 +592,18 @@
       Array.prototype.forEach.call($("segSrc").children, function (b) {
         b.addEventListener("click", function () { formSource = b.getAttribute("data-s"); setSeg(); });
       });
+      Array.prototype.forEach.call($("stepper").children, function (b) {
+        b.addEventListener("click", function () {
+          var v = parseAmt($("fAmt").value) + parseInt(b.getAttribute("data-d"), 10);
+          if (v < 0) v = 0;
+          $("fAmt").value = v ? comma(v) : "";
+        });
+      });
+      $("roundSw").addEventListener("click", function () {
+        formRound = !formRound; setRound();
+        if (formRound) { var n = Math.round(parseAmt($("fAmt").value) / 1000) * 1000; $("fAmt").value = n ? comma(n) : ""; }
+      });
+      setRound();
       if (id) { $("delBtn").style.display = "block"; }
       wireAmt();
     } else if (type === "bookmark") {
@@ -597,6 +626,11 @@
       b.className = (s === formSource ? "on " + s : "");
     });
   }
+  function setRound() {
+    var sw = $("roundSw"), st = $("stepper");
+    if (sw) sw.className = "switch" + (formRound ? " on" : "");
+    if (st) st.style.display = formRound ? "flex" : "none";
+  }
   function wireAmt() {
     var el = $("fAmt"); if (!el) return;
     el.addEventListener("input", function () { var n = parseAmt(this.value); this.value = n ? comma(n) : ""; });
@@ -613,8 +647,9 @@
     } else if (sheetType === "alloc") {
       var name = $("fName").value.trim(); if (!name) { $("fName").focus(); return; }
       var amt = parseAmt($("fAmt").value);
-      if (editId) { var it = findAlloc(editId); it.source = formSource; it.dest = name; it.amount = amt; }
-      else { c.allocations.push({ id: uid(), source: formSource, dest: name, amount: amt, done: false }); }
+      if (formRound) amt = Math.round(amt / 1000) * 1000;
+      if (editId) { var it = findAlloc(editId); it.source = formSource; it.dest = name; it.amount = amt; it.round1000 = formRound; }
+      else { c.allocations.push({ id: uid(), source: formSource, dest: name, amount: amt, done: false, doneAt: null, round1000: formRound }); }
     } else if (sheetType === "bookmark") {
       var label = $("fName").value.trim(), url = $("fUrl").value.trim();
       if (!url) { $("fUrl").focus(); return; }
@@ -639,6 +674,7 @@
 
   function svgCheck() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
   function svgCircle() { return '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/></svg>'; }
+  function svgDeposit() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v10m0 0l-3.5-3.5M12 13l3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 14v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'; }
   function svgAlert() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.2" fill="currentColor"/><path d="M12 4l9 16H3L12 4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
   function svgHeart() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 20c4.5-2.8 7-5.5 7-8.9A4.2 4.2 0 0 0 12 7.5 4.2 4.2 0 0 0 5 11.1C5 14.5 7.5 17.2 12 20Z" fill="currentColor"/></svg>'; }
   function svgLink() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M9 15l6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12.5l-1.7 1.7a3 3 0 0 0 4.2 4.2l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.5 11.5l1.7-1.7a3 3 0 0 0-4.2-4.2l-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'; }
