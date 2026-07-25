@@ -126,7 +126,7 @@
   .acct { background: var(--surface); border-radius: 16px; padding: 14px 15px 13px; box-shadow: var(--shadow-sm); border: 1.5px solid transparent; transition: border-color .2s ease, background .2s ease; }
   .acct.done { border-color: color-mix(in srgb, var(--sage) 40%, transparent); background: color-mix(in srgb, var(--sage-soft) 55%, var(--surface)); }
   .acct .a-top { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-  .acct .a-ic { width: 38px; height: 38px; border-radius: 12px; flex: none; display: grid; place-items: center; background: var(--surface-2); color: var(--rose-deep); font-family: var(--font-round); font-weight: 800; font-size: 1.05rem; }
+  .acct .a-ic { width: 38px; height: 38px; border-radius: 12px; flex: none; display: grid; place-items: center; background: var(--surface-2); color: var(--rose-deep); font-family: var(--font-round); font-weight: 800; font-size: 1.3rem; }
   .group.m .acct .a-ic { color: var(--teal-deep); }
   .acct.done .a-ic { background: var(--sage-soft); color: var(--sage); }
   .acct .a-name { flex: 1; }
@@ -202,6 +202,18 @@
   .stepper button { flex: 1; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 11px; padding: 10px; font-family: var(--font-round); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; cursor: pointer; }
   .stepper button:active { background: var(--teal-soft); }
   .unit-tag { font-size: .64rem; color: var(--teal-deep); background: var(--teal-soft); padding: 1px 7px; border-radius: 99px; font-weight: 600; margin-left: 6px; vertical-align: middle; white-space: nowrap; }
+  .icons { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
+  .icons button { border: 1.5px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 8px 0; font-size: 1.3rem; line-height: 1; cursor: pointer; }
+  .icons button.on { border-color: var(--rose); background: var(--rose-soft); }
+  .gseg { display: inline-flex; background: var(--surface-2); border-radius: 99px; padding: 3px; gap: 2px; margin-bottom: 12px; }
+  .gseg button { border: none; background: none; color: var(--ink-soft); font-family: var(--font-body); font-weight: 700; font-size: .78rem; padding: 6px 14px; border-radius: 99px; cursor: pointer; }
+  .gseg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+  .spark-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .spark-row:last-child { border-bottom: none; }
+  .spark-row .sr-name { flex: 1; min-width: 0; font-size: .86rem; font-weight: 600; display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spark-row .sr-ic { font-size: 1.05rem; flex: none; }
+  .spark-row svg { flex: none; }
+  .spark-row .sr-val { font-family: var(--font-round); font-weight: 700; font-size: .92rem; font-variant-numeric: tabular-nums; text-align: right; min-width: 62px; }
   .sheet-actions { display: flex; gap: 10px; margin-top: 22px; }
   .btn { flex: 1; border: none; border-radius: 14px; padding: 14px; font-size: .98rem; font-weight: 700; font-family: var(--font-body); cursor: pointer; transition: transform .1s ease; }
   .btn:active { transform: scale(.98); }
@@ -296,9 +308,11 @@
   var WLABEL = { m: "♂の財布", f: "♀の財布" };
   var WSYM = { m: "♂", f: "♀" };
   function fmtDT(ts) { if (!ts) return ""; var d = new Date(ts); var mm = ("0" + d.getMinutes()).slice(-2); return (d.getMonth() + 1) + "月" + d.getDate() + "日 " + d.getHours() + ":" + mm; }
-  var destChips = ["（♀）群馬銀行", "（♂）群馬銀行", "（♀）ゆうちょ銀行", "（♂）ゆうちょ銀行", "生活費口座", "貯金"];
+  var destChips = ["群馬銀行", "ゆうちょ銀行", "東和銀行", "生活費口座", "貯金", "クレジット引落"];
+  var ICONS = ["🏦", "🏣", "🐖", "💰", "💳", "🏠", "💡", "📱", "🚗", "🎓", "🛡️", "🍚", "👶", "⛽", "🎁", "⭐", "❤️", "✈️"];
 
   var state = load();
+  var graphMode = "wallet";
 
   function load() {
     try { var raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {}
@@ -307,10 +321,10 @@
     s.months[m] = {
       wallets: { m: { amount: 280000 }, f: { amount: 150000 } },
       allocations: [
-        { id: uid(), source: "m", dest: "（♂）群馬銀行", amount: 180000, done: false, doneAt: null, round1000: true },
-        { id: uid(), source: "m", dest: "（♂）ゆうちょ銀行", amount: 45000, done: false, doneAt: null, round1000: true },
-        { id: uid(), source: "f", dest: "（♀）群馬銀行", amount: 95000, done: false, doneAt: null, round1000: true },
-        { id: uid(), source: "f", dest: "貯金", amount: 50000, done: false, doneAt: null, round1000: false }
+        { id: uid(), source: "m", dest: "群馬銀行", amount: 180000, done: false, doneAt: null, round1000: true, icon: "🏦" },
+        { id: uid(), source: "m", dest: "ゆうちょ銀行", amount: 45000, done: false, doneAt: null, round1000: true, icon: "🏣" },
+        { id: uid(), source: "f", dest: "東和銀行", amount: 95000, done: false, doneAt: null, round1000: true, icon: "🏦" },
+        { id: uid(), source: "f", dest: "貯金", amount: 50000, done: false, doneAt: null, round1000: false, icon: "🐖" }
       ]
     };
     return s;
@@ -344,7 +358,7 @@
       var w = { m: { amount: 0 }, f: { amount: 0 } }, a = [];
       if (prev) {
         w = { m: { amount: prev.wallets.m.amount }, f: { amount: prev.wallets.f.amount } };
-        prev.allocations.forEach(function (x) { a.push({ id: uid(), source: x.source, dest: x.dest, amount: x.amount, done: false, doneAt: null, round1000: !!x.round1000 }); });
+        prev.allocations.forEach(function (x) { a.push({ id: uid(), source: x.source, dest: x.dest, amount: x.amount, done: false, doneAt: null, round1000: !!x.round1000, icon: x.icon || "🏦" }); });
       }
       state.months[key] = { wallets: w, allocations: a };
     }
@@ -446,7 +460,7 @@
           '</div>' +
           '<button class="check ' + (x.done ? "ok" : "todo") + '">' +
             (x.done ? svgCheck() + "入金ずみ" : svgDeposit() + "入金した！") + '</button>';
-        el.querySelector(".a-ic").textContent = (x.dest || "先").slice(0, 1);
+        el.querySelector(".a-ic").textContent = x.icon || "🏦";
         var nEl = el.querySelector(".n");
         nEl.textContent = x.dest;
         if (x.round1000) { var tg = document.createElement("span"); tg.className = "unit-tag"; tg.textContent = "1000円単位"; nEl.appendChild(tg); }
@@ -495,64 +509,95 @@
     });
   }
 
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function sparkline(vals, color) {
+    var W = 92, H = 30, n = vals.length, max = Math.max(1, Math.max.apply(null, vals));
+    var slot = W / n, bw = Math.min(12, slot * 0.62);
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
+    vals.forEach(function (v, i) {
+      if (v <= 0) return;
+      var h = Math.max(2, (v / max) * (H - 3)), x = slot * i + slot / 2;
+      s += '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + (H - h).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="2" fill="' + color + '" opacity="' + (i === n - 1 ? 1 : 0.36) + '"/>';
+    });
+    return s + '</svg>';
+  }
+
   function renderGraph() {
     var host = $("graphBox");
     var keys = monthKeys().slice(-6);
+    var seg = '<div class="gseg" id="gseg">' +
+      '<button data-g="wallet"' + (graphMode === "wallet" ? ' class="on"' : "") + '>財布ごと</button>' +
+      '<button data-g="dest"' + (graphMode === "dest" ? ' class="on"' : "") + '>入金先ごと</button></div>';
+    host.innerHTML = seg + (graphMode === "wallet" ? walletGraph(keys) : destGraph(keys));
+    Array.prototype.forEach.call(document.querySelectorAll("#gseg button"), function (b) {
+      b.addEventListener("click", function () { graphMode = b.getAttribute("data-g"); renderGraph(); });
+    });
+  }
+
+  function walletGraph(keys) {
     var data = keys.map(function (k) {
-      var c = state.months[k];
-      var tm = 0, tf = 0;
+      var c = state.months[k], tm = 0, tf = 0;
       (c.allocations || []).forEach(function (x) { if (x.source === "m") tm += x.amount || 0; else tf += x.amount || 0; });
-      return { key: k, mo: parseInt(k.split("-")[1], 10), m: tm, f: tf, t: tm + tf };
+      return { mo: parseInt(k.split("-")[1], 10), m: tm, f: tf, t: tm + tf };
     });
     var maxV = Math.max(1, Math.max.apply(null, data.map(function (d) { return d.t; })));
-
-    var W = 320, H = 150, padB = 22, padT = 8, padL = 6, padR = 6;
-    var innerH = H - padB - padT;
-    var slot = (W - padL - padR) / data.length;
-    var bw = Math.min(38, slot * 0.56);
+    var W = 320, H = 150, padB = 22, padT = 8, padL = 6, padR = 6, innerH = H - padB - padT;
+    var slot = (W - padL - padR) / data.length, bw = Math.min(38, slot * 0.56);
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block">';
     svg += '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="var(--line)" stroke-width="1"/>';
     data.forEach(function (d, i) {
-      var x = padL + slot * i + slot / 2;
-      var hF = d.t > 0 ? (d.f / maxV) * innerH : 0;
-      var hM = d.t > 0 ? (d.m / maxV) * innerH : 0;
-      var base = H - padB;
+      var x = padL + slot * i + slot / 2, base = H - padB;
+      var hF = d.t > 0 ? (d.f / maxV) * innerH : 0, hM = d.t > 0 ? (d.m / maxV) * innerH : 0;
       if (hF > 0) svg += '<rect x="' + (x - bw / 2) + '" y="' + (base - hF) + '" width="' + bw + '" height="' + hF + '" rx="3" fill="var(--rose)"/>';
       if (hM > 0) svg += '<rect x="' + (x - bw / 2) + '" y="' + (base - hF - hM) + '" width="' + bw + '" height="' + hM + '" rx="3" fill="var(--teal)"/>';
       svg += '<text x="' + x + '" y="' + (H - 7) + '" text-anchor="middle" font-size="10" fill="var(--ink-soft)" font-family="var(--font-round)">' + d.mo + '月</text>';
     });
     svg += '</svg>';
-
     var legend = '<div class="chart-legend"><span><span class="dot" style="background:var(--teal)"></span>♂の財布</span><span><span class="dot" style="background:var(--rose)"></span>♀の財布</span></div>';
+    if (data.length <= 1) return legend + svg + '<div class="chart-note">月を切り替えて記録していくと、<br>ここに増減のグラフが育ちます 🌱</div>';
+    var curC = state.months[keys[keys.length - 1]], prevC = state.months[keys[keys.length - 2]], byDest = {};
+    (curC.allocations || []).forEach(function (x) { (byDest[x.dest] = byDest[x.dest] || { now: 0, prev: 0 }).now += x.amount || 0; });
+    (prevC.allocations || []).forEach(function (x) { (byDest[x.dest] = byDest[x.dest] || { now: 0, prev: 0 }).prev += x.amount || 0; });
+    var rows = Object.keys(byDest).map(function (dn) { return { dn: dn, now: byDest[dn].now, prev: byDest[dn].prev }; }).sort(function (a, b) { return b.now - a.now; });
+    var diff = '<div class="diff"><div class="dh">先月（' + parseInt(keys[keys.length - 2].split("-")[1], 10) + '月）とくらべて</div>';
+    rows.forEach(function (r) {
+      var d = r.now - r.prev, cls = d > 0 ? "up" : (d < 0 ? "down" : "same"), txt = d > 0 ? "▲ " + comma(d) : (d < 0 ? "▼ " + comma(-d) : "±0");
+      diff += '<div class="diff-row"><span class="dn">' + esc(r.dn) + '</span><span class="dv"><span class="now">' + yen(r.now) + '</span><span class="delta ' + cls + '">' + txt + '</span></span></div>';
+    });
+    return legend + svg + diff + '</div>';
+  }
 
-    // per-destination change vs previous month
-    var diff = "";
-    if (keys.length >= 2) {
-      var curC = state.months[keys[keys.length - 1]];
-      var prevC = state.months[keys[keys.length - 2]];
-      var byDest = {};
-      (curC.allocations || []).forEach(function (x) { byDest[x.dest] = byDest[x.dest] || { now: 0, prev: 0 }; byDest[x.dest].now += x.amount || 0; });
-      (prevC.allocations || []).forEach(function (x) { byDest[x.dest] = byDest[x.dest] || { now: 0, prev: 0 }; byDest[x.dest].prev += x.amount || 0; });
-      var rows = Object.keys(byDest).map(function (dn) { return { dn: dn, now: byDest[dn].now, prev: byDest[dn].prev }; })
-        .sort(function (a, b) { return b.now - a.now; });
-      diff = '<div class="diff"><div class="dh">先月（' + parseInt(keys[keys.length - 2].split("-")[1], 10) + '月）とくらべて</div>';
-      rows.forEach(function (r) {
-        var d = r.now - r.prev, cls = d > 0 ? "up" : (d < 0 ? "down" : "same");
-        var txt = d > 0 ? "▲ " + comma(d) : (d < 0 ? "▼ " + comma(-d) : "±0");
-        diff += '<div class="diff-row"><span class="dn">' + r.dn + '</span><span class="dv"><span class="now">' + yen(r.now) + '</span><span class="delta ' + cls + '">' + txt + '</span></span></div>';
+  function destGraph(keys) {
+    var map = {};
+    keys.forEach(function (k) {
+      (state.months[k].allocations || []).forEach(function (x) {
+        var d = map[x.dest] || (map[x.dest] = { vals: {}, source: x.source, icon: x.icon });
+        d.vals[k] = (d.vals[k] || 0) + (x.amount || 0); d.source = x.source; if (x.icon) d.icon = x.icon;
       });
-      diff += '</div>';
-    }
-
-    if (data.length <= 1) {
-      host.innerHTML = legend + svg + '<div class="chart-note">月を切り替えて記録していくと、<br>ここに増減のグラフが育ちます 🌱</div>';
-    } else {
-      host.innerHTML = legend + svg + diff;
-    }
+    });
+    var dests = Object.keys(map);
+    if (dests.length === 0) return '<div class="chart-note">入金先を登録すると、<br>ここに入金先ごとの推移が出ます 🌱</div>';
+    var rows = dests.map(function (dn) {
+      var vals = keys.map(function (k) { return map[dn].vals[k] || 0; });
+      return { dn: dn, vals: vals, latest: vals[vals.length - 1], prev: vals.length > 1 ? vals[vals.length - 2] : 0, source: map[dn].source, icon: map[dn].icon };
+    }).sort(function (a, b) { return b.latest - a.latest; });
+    var html = '<div class="chart-legend"><span>入金先ごとの月ごと推移（最新月が濃い色）</span></div>';
+    rows.forEach(function (r) {
+      var color = r.source === "m" ? "var(--teal)" : "var(--rose)";
+      var d = r.latest - r.prev, cls = d > 0 ? "up" : (d < 0 ? "down" : "same");
+      var dtxt = keys.length < 2 ? "" : (d > 0 ? "▲" + comma(d) : (d < 0 ? "▼" + comma(-d) : "±0"));
+      html += '<div class="spark-row">' +
+        '<div class="sr-name"><span class="sr-ic">' + (r.icon || "🏦") + '</span>' + esc(r.dn) + '</div>' +
+        sparkline(r.vals, color) +
+        '<div class="sr-val">' + yen(r.latest) + '<div class="delta ' + cls + '" style="font-size:.68rem;font-weight:700">' + dtxt + '</div></div>' +
+        '</div>';
+    });
+    return html;
   }
 
   // ---- sheet ----
-  var sheetType = null, editId = null, formSource = "f", formRound = true;
+  var sheetType = null, editId = null, formSource = "f", formRound = true, formIcon = "🏦";
 
   function openSheet(type, id, presetSource) {
     sheetType = type; editId = (id != null ? id : null);
@@ -571,14 +616,16 @@
       var item = id ? findAlloc(id) : null;
       formSource = item ? item.source : (presetSource || "f");
       formRound = item ? !!item.round1000 : true;
+      formIcon = item ? (item.icon || "🏦") : "🏦";
       $("sheetTitle").textContent = (id ? "編集" : "追加") + "・入金先";
       body.innerHTML =
         '<div class="field"><label>どちらの財布から</label><div class="seg" id="segSrc">' +
           '<button type="button" data-s="f"><span class="s">♀</span>♀の財布</button>' +
           '<button type="button" data-s="m"><span class="s">♂</span>♂の財布</button></div></div>' +
         '<div class="field"><label>入金先（口座）の名前</label>' +
-          '<input type="text" id="fName" placeholder="例：（♀）群馬銀行" autocomplete="off">' +
+          '<input type="text" id="fName" placeholder="例：群馬銀行" autocomplete="off">' +
           '<div class="chips" id="chips"></div></div>' +
+        '<div class="field"><label>アイコン</label><div class="icons" id="iconGrid"></div></div>' +
         '<div class="field"><label>入金する金額</label>' +
           '<input type="text" id="fAmt" class="amt-input" inputmode="numeric" placeholder="0">' +
           '<div class="stepper" id="stepper"><button type="button" data-d="-1000">−1,000</button><button type="button" data-d="1000">＋1,000</button></div></div>' +
@@ -586,6 +633,13 @@
           '<div class="lbl">ATMでの入金<small>金額を1000円単位にする</small></div></div></div>';
       var chips = $("chips");
       destChips.forEach(function (t) { var b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = t; b.addEventListener("click", function () { $("fName").value = t; }); chips.appendChild(b); });
+      var ig = $("iconGrid");
+      ICONS.forEach(function (em) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = em;
+        b.className = (em === formIcon ? "on" : "");
+        b.addEventListener("click", function () { formIcon = em; Array.prototype.forEach.call(ig.children, function (c) { c.className = (c.textContent === formIcon ? "on" : ""); }); });
+        ig.appendChild(b);
+      });
       $("fName").value = item ? item.dest : "";
       $("fAmt").value = item ? comma(item.amount) : "";
       setSeg();
@@ -648,8 +702,8 @@
       var name = $("fName").value.trim(); if (!name) { $("fName").focus(); return; }
       var amt = parseAmt($("fAmt").value);
       if (formRound) amt = Math.round(amt / 1000) * 1000;
-      if (editId) { var it = findAlloc(editId); it.source = formSource; it.dest = name; it.amount = amt; it.round1000 = formRound; }
-      else { c.allocations.push({ id: uid(), source: formSource, dest: name, amount: amt, done: false, doneAt: null, round1000: formRound }); }
+      if (editId) { var it = findAlloc(editId); it.source = formSource; it.dest = name; it.amount = amt; it.round1000 = formRound; it.icon = formIcon; }
+      else { c.allocations.push({ id: uid(), source: formSource, dest: name, amount: amt, done: false, doneAt: null, round1000: formRound, icon: formIcon }); }
     } else if (sheetType === "bookmark") {
       var label = $("fName").value.trim(), url = $("fUrl").value.trim();
       if (!url) { $("fUrl").focus(); return; }
