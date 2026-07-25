@@ -1,7 +1,7 @@
 // おかね振り分けノート — オフライン対応の簡易 Service Worker
 // 方針：ネットがあれば最新を取りに行き、なければキャッシュから返す（network-first）。
 // これで「更新すれば新しい版が届く／圏外でも起動する」を両立します。
-var CACHE = "okane-wakefuri-v1";
+var CACHE = "oshidori-saifu-v2";
 var ASSETS = [
   "./",
   "./index.html",

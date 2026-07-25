@@ -1,6 +1,6 @@
 {
-  "name": "おかね振り分けノート",
-  "short_name": "おかね振り分け",
+  "name": "おしどりの財布",
+  "short_name": "おしどり財布",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
