@@ -76,9 +76,34 @@
   .monthbar button:active { transform: scale(.9); }
   .monthbar .label { font-family: var(--font-round); font-weight: 700; font-size: 1.02rem; min-width: 116px; text-align: center; font-variant-numeric: tabular-nums; }
 
-  .note { font-size: .8rem; border-radius: 13px; padding: 10px 13px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; margin-bottom: 16px; }
+  .summary { background: var(--surface); border-radius: var(--radius); padding: 20px 20px 18px; box-shadow: var(--shadow); margin-bottom: 18px; position: relative; overflow: hidden; }
+  .summary .cap { font-size: .74rem; color: var(--ink-soft); font-weight: 600; letter-spacing: .04em; }
+  .summary .total { font-family: var(--font-round); font-weight: 800; font-size: 2.25rem; line-height: 1.1; margin: 2px 0; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 3px; }
+  .summary .total .yen { font-size: 1.25rem; font-weight: 700; color: var(--ink-soft); }
+  .summary .sub { font-size: .82rem; color: var(--ink-soft); margin-bottom: 15px; }
+  .summary .sub b { color: var(--rose-deep); font-family: var(--font-round); font-variant-numeric: tabular-nums; }
+  .bar { height: 12px; border-radius: 99px; background: var(--surface-2); overflow: hidden; display: flex; box-shadow: inset 0 1px 3px rgba(0,0,0,.06); }
+  .bar .fill { background: linear-gradient(90deg, var(--sage) 0%, #6FBE9E 100%); height: 100%; width: 0; transition: width .5s cubic-bezier(.4,1.2,.5,1); }
+  .legend { display: flex; gap: 16px; margin-top: 13px; flex-wrap: wrap; }
+  .legend .item { display: flex; flex-direction: column; gap: 1px; }
+  .legend .k { font-size: .7rem; color: var(--ink-soft); display: flex; align-items: center; gap: 5px; }
+  .legend .k .dot { width: 8px; height: 8px; border-radius: 99px; }
+  .legend .v { font-family: var(--font-round); font-weight: 700; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+  .dot.sage { background: var(--sage); } .dot.amber { background: var(--amber); } .dot.rose { background: var(--rose); }
+  .note { font-size: .8rem; border-radius: 13px; padding: 10px 13px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; margin-top: 14px; }
+  .note.warn { background: var(--amber-soft); color: var(--amber); }
   .note.done { background: var(--sage-soft); color: var(--sage); }
   .note svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
+  .note + .note { margin-top: 8px; }
+
+  /* 収入カード（口座カードと同じ開閉式・内訳を持つ） */
+  #wallets { margin-bottom: 24px; }
+  .wallet-card { border-top: 3px solid var(--rose); }
+  .wallet-card.m { border-top-color: var(--teal); }
+  .wallet-card .ac-ic { background: var(--rose-soft); color: var(--rose-deep); font-family: var(--font-round); font-weight: 800; font-size: 1.15rem; }
+  .wallet-card.m .ac-ic { background: var(--teal-soft); color: var(--teal-deep); }
+  .ac-pill.rest { background: var(--surface-2); color: var(--ink-soft); }
+  .ac-pill.short { background: var(--amber-soft); color: var(--amber); }
 
   .section-head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 11px; }
   .section-head h2 { font-family: var(--font-round); font-size: 1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -299,12 +324,26 @@
     <button id="nextM" aria-label="次の月">›</button>
   </div>
 
-  <div id="noteWrap"></div>
+  <div class="summary">
+    <div class="cap">いま 手元にのこっているお金</div>
+    <div class="total num"><span class="yen" id="restYen">¥</span><span id="restAmt">0</span></div>
+    <div class="sub">収入 <b id="incomeTotal">¥0</b> － 入金ずみ <b id="doneSub">¥0</b></div>
+    <div class="bar"><div class="fill" id="barFill"></div></div>
+    <div class="legend">
+      <div class="item"><div class="k"><span class="dot sage"></span>入金ずみ</div><div class="v num" id="doneAmt">¥0</div></div>
+      <div class="item"><div class="k"><span class="dot amber"></span>これから入金</div><div class="v num" id="todoAmt">¥0</div></div>
+      <div class="item"><div class="k"><span class="dot rose"></span>ぜんぶ入金後の手残り</div><div class="v num" id="leftAmt">¥0</div></div>
+    </div>
+    <div id="noteWrap"></div>
+  </div>
+
+  <div class="section-head"><h2>今月の収入</h2></div>
+  <div class="acct-list" id="wallets"></div>
 
   <div class="section-head"><h2>口座ごとの入金</h2></div>
   <div id="groups"></div>
 
-  <div class="footer-tip">口座をタップで開くと内訳。右上の ☰ から 口座設定・ブックマーク・集計グラフ へ。<br>データはこのiPhoneの中だけに保存されます。</div>
+  <div class="footer-tip">♀♂の収入カードをタップで開くと、給与・賞与などの内訳を入れられます。<br>口座をタップで開くと入金の内訳。<br>右上の ☰ から 口座設定・ブックマーク・集計グラフ へ。<br>データはこのiPhoneの中だけに保存されます。</div>
 </div>
 
 <div class="settings-scrim" id="setScrim"></div>
@@ -366,7 +405,10 @@
   var LEGACY_KEYS = ["oshidori_v3", "oshidori_v2"];
   var yen = function (n) { return "¥" + (n || 0).toLocaleString("ja-JP"); };
   var comma = function (n) { return (n || 0).toLocaleString("ja-JP"); };
+  var signedYen = function (n) { return n < 0 ? "−¥" + comma(-n) : yen(n); };
   var $ = function (id) { return document.getElementById(id); };
+  var WLABEL = { m: "♂の財布", f: "♀の財布" };
+  var WSYM = { m: "♂", f: "♀" };
   var SRC_SYM = { f: "♀", m: "♂", c: "◇" };
   var GROUP_TITLE = { f: "の財布 から", m: "の財布 から", c: "どちらでもない（余裕があれば）" };
   var ICONS = ["🏦", "🏣", "🐖", "💰", "💳", "🏠", "💡", "📱", "🚗", "🎓", "🛡️", "🍚", "👶", "⛽", "🎁", "⭐", "❤️", "✈️"];
@@ -405,7 +447,7 @@
       months: {},
       bookmarks: []
     };
-    s.months[m] = { acc: {} };
+    s.months[m] = { wallets: { m: { items: [] }, f: { items: [] } }, acc: {} };
     s.months[m].acc[a1] = { items: [{ id: uid(), name: "妻の歯の矯正（アプラスローン）", amount: 9914, memo: "" }, { id: uid(), name: "妻の車のローン", amount: 11378, memo: "" }], done: false, doneAt: null };
     s.months[m].acc[a2] = { items: [{ id: uid(), name: "お父さんへの教育ローン（パパへの自動送金）", amount: 18000, memo: "" }, { id: uid(), name: "奨学金の返済", amount: 14817, memo: "1000円単位の端数が出るため" }], done: false, doneAt: null };
     return s;
@@ -425,7 +467,15 @@
     });
     Object.keys(s.months).forEach(function (mk) {
       var mm = s.months[mk];
-      // 給与収入の記録機能は廃止。旧データの wallets は読まない（残っていても無視する）
+      if (!mm.wallets) mm.wallets = {};
+      ["m", "f"].forEach(function (k) {
+        var w = mm.wallets[k];
+        if (!w) w = mm.wallets[k] = { items: [] };
+        // 旧データ（合計額だけ）は「給与」1件の内訳に変換する
+        if (!w.items) w.items = (w.amount > 0) ? [{ id: uid(), name: "給与", amount: w.amount, memo: "" }] : [];
+        w.items.forEach(function (it) { if (typeof it.memo === "undefined") it.memo = ""; });
+        delete w.amount;
+      });
       if (!mm.acc) mm.acc = {};
       Object.keys(mm.acc).forEach(function (ak) {
         var ma = mm.acc[ak];
@@ -456,6 +506,13 @@
     // 内訳(item)のIDも、欠落・重複があれば振り直す（外部参照がないので安全）
     var itemSeen = {};
     Object.keys(s.months).forEach(function (mk) {
+      var wl = s.months[mk].wallets || {};
+      ["m", "f"].forEach(function (k) {
+        ((wl[k] && wl[k].items) || []).forEach(function (it) {
+          if (!it.id || Object.prototype.hasOwnProperty.call(itemSeen, it.id)) it.id = uid();
+          itemSeen[it.id] = true;
+        });
+      });
       var acc = s.months[mk].acc || {};
       Object.keys(acc).forEach(function (ak) {
         (acc[ak].items || []).forEach(function (it) {
@@ -470,10 +527,14 @@
 
   function cur() {
     var c = state.months[state.current];
-    if (!c) c = state.months[state.current] = { acc: {} };
+    if (!c) c = state.months[state.current] = { wallets: {}, acc: {} };
+    if (!c.wallets) c.wallets = {};
+    ["m", "f"].forEach(function (k) { if (!c.wallets[k]) c.wallets[k] = { items: [] }; if (!c.wallets[k].items) c.wallets[k].items = []; });
     if (!c.acc) c.acc = {};
     return c;
   }
+  function walletItems(month, k) { return (month.wallets && month.wallets[k] && month.wallets[k].items) || []; }
+  function walletIncome(month, k) { return walletItems(month, k).reduce(function (s, x) { return s + (x.amount || 0); }, 0); }
   function monthAcc(month, accId) {
     if (!month.acc) month.acc = {};
     if (!month.acc[accId]) month.acc[accId] = { items: [], done: false, doneAt: null };
@@ -483,11 +544,19 @@
   function itemsSum(ma) { return activeItems(ma).reduce(function (s, x) { return s + (x.amount || 0); }, 0); }
   function depositTotal(acc, ma) { var s = itemsSum(ma); return (acc && acc.round1000) ? Math.ceil(s / 1000) * 1000 : s; }
   // c口座（どちらでもない）は内訳ごとに入金済みを持つ。♂♀口座は口座単位のma.done。
+  function accountDone(acc, ma) {
+    if (acc && acc.source === "c") return activeItems(ma).reduce(function (s, x) { return s + (x.done ? (x.amount || 0) : 0); }, 0);
+    return ma.done ? depositTotal(acc, ma) : 0;
+  }
   function accountFullyDone(acc, ma) {
     if (acc && acc.source === "c") return activeItems(ma).every(function (x) { return x.done; });
     return !!ma.done;
   }
   function findAccount(id) { for (var i = 0; i < state.accounts.length; i++) if (state.accounts[i].id === id) return state.accounts[i]; return null; }
+  // その財布から出す口座だけを集める（src="c"はどちらの財布にも数えない）
+  function walletAccounts(src) { return state.accounts.filter(function (a) { return a.source === src; }); }
+  function walletAllocated(month, src) { return walletAccounts(src).reduce(function (s, a) { return s + depositTotal(a, monthAcc(month, a.id)); }, 0); }
+  function walletDone(month, src) { return walletAccounts(src).reduce(function (s, a) { return s + accountDone(a, monthAcc(month, a.id)); }, 0); }
 
   function shiftMonth(delta) {
     var parts = state.current.split("-");
@@ -496,14 +565,18 @@
     var key = y + "-" + mo;
     if (!state.months[key]) {
       var prev = state.months[state.current];
-      var acc = {};
+      var w = { m: { items: [] }, f: { items: [] } }, acc = {};
       if (prev) {
+        // 収入の内訳も前の月をひとまず引き継ぐ（毎月そのまま使えるように・変えたければタップ）
+        ["m", "f"].forEach(function (k) {
+          w[k] = { items: walletItems(prev, k).map(function (it) { return { id: uid(), name: it.name, amount: it.amount, memo: it.memo || "" }; }) };
+        });
         state.accounts.forEach(function (a) {
           var pa = prev.acc && prev.acc[a.id];
           acc[a.id] = { items: (pa ? pa.items : []).map(function (it) { return { id: uid(), name: it.name, amount: it.amount, memo: it.memo || "", done: false, skip: false }; }), done: false, doneAt: null };
         });
       }
-      state.months[key] = { acc: acc };
+      state.months[key] = { wallets: w, acc: acc };
     }
     state.current = key; save(); render();
   }
@@ -513,16 +586,93 @@
     var parts = state.current.split("-");
     $("mLabel").textContent = parts[0] + "年 " + parts[1] + "月";
 
+    var incM = walletIncome(c, "m"), incF = walletIncome(c, "f"), incTotal = incM + incF;
+    var allocTotal = state.accounts.reduce(function (s, a) { return s + depositTotal(a, monthAcc(c, a.id)); }, 0);
+    var doneTotal = state.accounts.reduce(function (s, a) { return s + accountDone(a, monthAcc(c, a.id)); }, 0);
+    var rest = incTotal - doneTotal;      // いま手元にのこっているお金（入金するたび減る）
+    var left = incTotal - allocTotal;     // ぜんぶ入金し終わったときの手残り
+
+    $("restAmt").textContent = comma(Math.abs(rest));
+    $("restYen").textContent = rest < 0 ? "−¥" : "¥";
+    $("restAmt").parentNode.style.color = rest < 0 ? "#D9534F" : "";
+    $("incomeTotal").textContent = yen(incTotal);
+    $("doneSub").textContent = yen(doneTotal);
+    $("doneAmt").textContent = yen(doneTotal);
+    $("todoAmt").textContent = yen(allocTotal - doneTotal);
+    $("leftAmt").textContent = signedYen(left);
+    $("leftAmt").style.color = left < 0 ? "#D9534F" : "";
+    $("barFill").style.width = (allocTotal > 0 ? Math.round(doneTotal / allocTotal * 100) : 0) + "%";
+
     var nw = $("noteWrap"); nw.innerHTML = "";
+    var shortM = walletAllocated(c, "m") - incM, shortF = walletAllocated(c, "f") - incF;
+    if (shortF > 0) nw.innerHTML += noteHTML("warn", svgAlert(), "♀の財布は入金予定が <b>" + yen(shortF) + "</b> オーバーしています。");
+    if (shortM > 0) nw.innerHTML += noteHTML("warn", svgAlert(), "♂の財布は入金予定が <b>" + yen(shortM) + "</b> オーバーしています。");
     var anyAcc = state.accounts.length > 0;
     var allDone = anyAcc && state.accounts.every(function (a) { return accountFullyDone(a, monthAcc(c, a.id)); });
-    if (allDone) nw.innerHTML = noteHTML("done", svgHeart(), "今月の入金、ぜんぶ完了！おつかれさま 🌸");
+    if (allDone && shortM <= 0 && shortF <= 0) nw.innerHTML += noteHTML("done", svgHeart(), "今月の入金、ぜんぶ完了！手残りは " + yen(rest) + " です 🌸");
 
+    renderWallets(c, incM, incF);
     renderGroups(c);
     renderBookmarks();
     renderGraph();
   }
   function noteHTML(cls, icon, html) { return '<div class="note ' + cls + '">' + icon + "<div>" + html + "</div></div>"; }
+
+  // 収入カード（口座カードと同じ開閉式。内訳＝給与・賞与・手当…をいくつでも）
+  function renderWallets(c, incM, incF) {
+    var host = $("wallets"); host.innerHTML = "";
+    [["f", incF], ["m", incM]].forEach(function (pair) {
+      var k = pair[0], inc = pair[1];
+      var items = walletItems(c, k);
+      var alloc = walletAllocated(c, k), done = walletDone(c, k);
+      var rest = inc - done;   // この財布に今のこっている額（入金するたび減る）
+      var left = inc - alloc;  // この財布からぜんぶ入金したあとの手残り
+      var open = !!openAccts["w-" + k];
+
+      var el = document.createElement("div");
+      el.className = "acct-card wallet-card " + k + (open ? " open" : "");
+      var head = document.createElement("div");
+      head.className = "ac-head";
+      head.innerHTML =
+        '<div class="ac-ic">' + WSYM[k] + '</div>' +
+        '<div class="ac-name"><div class="n">' + WLABEL[k] + '</div><div class="sub"></div></div>' +
+        '<div class="ac-right">' +
+          '<div class="ac-amt"' + (rest < 0 ? ' style="color:#D9534F"' : '') + '><span class="yen">' + (rest < 0 ? "−¥" : "¥") + '</span>' + comma(Math.abs(rest)) + '</div>' +
+          '<div class="ac-pill ' + (left < 0 ? "short" : "rest") + '">' + (left < 0 ? comma(-left) + "円たりない" : "のこり") + '</div>' +
+        '</div>' +
+        '<div class="ac-arrow">›</div>';
+      head.querySelector(".ac-name .sub").textContent =
+        "収入 " + yen(inc) + " ・ " + items.length + "件の内訳" + (left >= 0 ? " ・ ぜんぶ入金後 " + yen(left) : "");
+      head.addEventListener("click", function () { openAccts["w-" + k] = !open; render(); });
+      el.appendChild(head);
+
+      if (open) {
+        var body = document.createElement("div");
+        body.className = "ac-body";
+        var ih = document.createElement("div"); ih.className = "items-h"; ih.textContent = "内訳（この財布に入ってくるもの）";
+        body.appendChild(ih);
+        if (items.length === 0) {
+          var em = document.createElement("div"); em.className = "item-empty"; em.textContent = "まだ内訳がありません。下から追加してください。";
+          body.appendChild(em);
+        }
+        items.forEach(function (it) {
+          var row = document.createElement("div"); row.className = "item-row";
+          row.innerHTML = '<div class="ir-main"><span class="in"></span><span class="im"></span></div><span class="ia"><span class="yen">¥</span>' + comma(it.amount) + '</span>';
+          row.querySelector(".in").textContent = it.name;
+          var im = row.querySelector(".im");
+          if (it.memo) im.textContent = it.memo; else im.style.display = "none";
+          row.addEventListener("click", function () { openIncomeSheet(k, it.id); });
+          body.appendChild(row);
+        });
+        var addi = document.createElement("button"); addi.className = "add-item";
+        addi.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>収入を追加';
+        addi.addEventListener("click", function () { openIncomeSheet(k, null); });
+        body.appendChild(addi);
+        el.appendChild(body);
+      }
+      host.appendChild(el);
+    });
+  }
 
   function renderGroups(c) {
     var host = $("groups"); host.innerHTML = "";
@@ -775,11 +925,34 @@
   }
 
   // ---- bottom sheet ----
-  var sheetType = null, editId = null, formSource = "f", formRound = true, formIcon = "🏦", formAccId = null, formOptional = false;
+  var sheetType = null, editId = null, formSource = "f", formRound = true, formIcon = "🏦", formAccId = null, formOptional = false, formWallet = "f";
 
   function clearSheet() { $("delBtn").style.display = "none"; $("sheetBody").innerHTML = ""; }
   function showSheet() { $("scrim").classList.add("show"); $("sheet").classList.add("show"); }
   function closeSheet() { $("scrim").classList.remove("show"); $("sheet").classList.remove("show"); if (document.activeElement) document.activeElement.blur(); }
+
+  function openIncomeSheet(k, itemId) {
+    sheetType = "income"; editId = itemId; formWallet = k; clearSheet();
+    var it = itemId ? findIncomeItem(k, itemId) : null;
+    $("sheetTitle").textContent = (itemId ? "収入を編集" : "収入を追加") + "（" + WLABEL[k] + "）";
+    $("sheetBody").innerHTML =
+      '<div class="field"><label>収入の名前（何のお金か）</label><input type="text" id="fName" placeholder="例：給与" autocomplete="off">' +
+        '<div class="chips" id="incChips"></div></div>' +
+      '<div class="field"><label>金額（手取り）</label><input type="text" id="fAmt" class="amt-input" inputmode="numeric" placeholder="0">' +
+        '<div class="hint">ここから各口座へ入金するたびに、手元にのこる額が減っていきます</div></div>' +
+      '<div class="field"><label>メモ（任意・翌月にも引き継がれます）</label><textarea id="fMemo" rows="2" placeholder="例：6月と12月は賞与あり"></textarea></div>';
+    var chips = $("incChips");
+    ["給与", "賞与", "残業代", "手当", "副業", "その他"].forEach(function (t) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = t;
+      b.addEventListener("click", function () { $("fName").value = t; });
+      chips.appendChild(b);
+    });
+    $("fName").value = it ? it.name : "";
+    $("fAmt").value = it ? comma(it.amount) : "";
+    $("fMemo").value = it ? (it.memo || "") : "";
+    if (itemId) $("delBtn").style.display = "block";
+    wireAmt(); showSheet();
+  }
 
   function openAccountSheet(id, presetSource) {
     sheetType = "account"; editId = id; clearSheet();
@@ -853,11 +1026,17 @@
   function setOpt() { var sw = $("optSw"); if (sw) sw.className = "switch" + (formOptional ? " on" : ""); }
   function wireAmt() { var el = $("fAmt"); if (!el) return; el.addEventListener("input", function () { var n = parseAmt(this.value); this.value = n ? comma(n) : ""; }); }
   function parseAmt(v) { var n = parseInt(String(v).replace(/[^0-9]/g, ""), 10); return isNaN(n) ? 0 : n; }
+  function findIncomeItem(k, itemId) { var its = walletItems(cur(), k); for (var i = 0; i < its.length; i++) if (its[i].id === itemId) return its[i]; return null; }
   function findItem(accId, itemId) { var ma = monthAcc(cur(), accId); for (var i = 0; i < ma.items.length; i++) if (ma.items[i].id === itemId) return ma.items[i]; return null; }
   function findBm(id) { for (var i = 0; i < state.bookmarks.length; i++) if (state.bookmarks[i].id === id) return state.bookmarks[i]; return null; }
 
   $("saveBtn").addEventListener("click", function () {
-    if (sheetType === "account") {
+    if (sheetType === "income") {
+      var wname = $("fName").value.trim(); if (!wname) { $("fName").focus(); return; }
+      var wamt = parseAmt($("fAmt").value), wmemo = $("fMemo").value.trim();
+      if (editId) { var wit = findIncomeItem(formWallet, editId); wit.name = wname; wit.amount = wamt; wit.memo = wmemo; }
+      else { cur().wallets[formWallet].items.push({ id: uid(), name: wname, amount: wamt, memo: wmemo }); openAccts["w-" + formWallet] = true; }
+    } else if (sheetType === "account") {
       var name = $("fName").value.trim(); if (!name) { $("fName").focus(); return; }
       var memo = $("fMemo").value.trim();
       if (editId) { var a = findAccount(editId); a.name = name; a.icon = formIcon; a.source = formSource; a.round1000 = formRound; a.optional = formOptional; a.memo = memo; }
@@ -880,7 +1059,10 @@
   });
 
   $("delBtn").addEventListener("click", function () {
-    if (sheetType === "account" && editId) {
+    if (sheetType === "income" && editId) {
+      var w = cur().wallets[formWallet];
+      w.items = w.items.filter(function (x) { return x.id !== editId; });
+    } else if (sheetType === "account" && editId) {
       state.accounts = state.accounts.filter(function (a) { return a.id !== editId; });
       Object.keys(state.months).forEach(function (mk) { if (state.months[mk].acc) delete state.months[mk].acc[editId]; });
       delete openAccts[editId];
@@ -917,6 +1099,7 @@
 
   function svgCheck() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
   function svgDeposit() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v10m0 0l-3.5-3.5M12 13l3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 14v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'; }
+  function svgAlert() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 8v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.2" fill="currentColor"/><path d="M12 4l9 16H3L12 4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
   function svgHeart() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 20c4.5-2.8 7-5.5 7-8.9A4.2 4.2 0 0 0 12 7.5 4.2 4.2 0 0 0 5 11.1C5 14.5 7.5 17.2 12 20Z" fill="currentColor"/></svg>'; }
   function svgLink() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M9 15l6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12.5l-1.7 1.7a3 3 0 0 0 4.2 4.2l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.5 11.5l1.7-1.7a3 3 0 0 0-4.2-4.2l-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'; }
   function svgPencil() { return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
