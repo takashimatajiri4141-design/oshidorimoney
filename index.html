@@ -158,6 +158,25 @@
   .add-item { width: 100%; border: 1.5px dashed var(--line); background: none; color: var(--ink-soft); border-radius: 11px; padding: 10px; font-family: var(--font-body); font-weight: 700; font-size: .84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 2px; }
   .add-item:active { background: var(--surface-2); }
   .add-item svg { width: 14px; height: 14px; }
+  .citem { background: var(--surface-2); border-radius: 12px; padding: 11px 12px; margin-bottom: 8px; }
+  .citem.done { background: color-mix(in srgb, var(--sage-soft) 55%, var(--surface-2)); }
+  .citem.skip { opacity: .5; }
+  .citem .ci-top { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .citem .ir-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .citem .in { font-size: .92rem; font-weight: 600; }
+  .citem .im { font-size: .72rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .citem .ia { font-family: var(--font-round); font-weight: 700; font-variant-numeric: tabular-nums; font-size: .98rem; flex: none; }
+  .citem .ia .yen { font-size: .74rem; color: var(--ink-soft); margin-right: 1px; }
+  .citem.skip .in, .citem.skip .ia { text-decoration: line-through; }
+  .ci-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .ci-btn { flex: 1; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-soft); border-radius: 10px; padding: 9px; font-family: var(--font-body); font-weight: 700; font-size: .82rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: transform .1s ease; }
+  .ci-btn:active { transform: scale(.98); }
+  .ci-btn svg { width: 15px; height: 15px; }
+  .citem.done .done-btn { background: var(--sage); border-color: var(--sage); color: #fff; }
+  @media (prefers-color-scheme: dark) { .citem.done .done-btn { color: #12241C; } }
+  :root[data-theme="dark"] .citem.done .done-btn { color: #12241C; }
+  :root[data-theme="light"] .citem.done .done-btn { color: #fff; }
+  .ci-btn.skip-btn.on { background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 40%, transparent); color: var(--amber); }
   .deposit-note { font-size: .76rem; color: var(--ink-soft); background: var(--surface-2); border-radius: 11px; padding: 9px 12px; margin-top: 12px; line-height: 1.6; text-align: center; }
   .deposit-note b { font-family: var(--font-round); color: var(--ink); font-variant-numeric: tabular-nums; }
   .ac-actions { margin-top: 14px; }
@@ -459,7 +478,7 @@
       Object.keys(mm.acc).forEach(function (ak) {
         var ma = mm.acc[ak];
         if (!ma.items) ma.items = [];
-        ma.items.forEach(function (it) { if (typeof it.memo === "undefined") it.memo = ""; });
+        ma.items.forEach(function (it) { if (typeof it.memo === "undefined") it.memo = ""; if (typeof it.done === "undefined") it.done = false; if (typeof it.skip === "undefined") it.skip = false; });
       });
     });
     return repairIds(s);
@@ -509,8 +528,18 @@
     if (!month.acc[accId]) month.acc[accId] = { items: [], done: false, doneAt: null };
     return month.acc[accId];
   }
-  function itemsSum(ma) { return (ma.items || []).reduce(function (s, x) { return s + (x.amount || 0); }, 0); }
+  function activeItems(ma) { return (ma.items || []).filter(function (x) { return !x.skip; }); }
+  function itemsSum(ma) { return activeItems(ma).reduce(function (s, x) { return s + (x.amount || 0); }, 0); }
   function depositTotal(acc, ma) { var s = itemsSum(ma); return (acc && acc.round1000) ? Math.ceil(s / 1000) * 1000 : s; }
+  // c口座（どちらでもない）は内訳ごとに入金済みを持つ。♂♀口座は口座単位のma.done。
+  function accountDone(acc, ma) {
+    if (acc && acc.source === "c") return activeItems(ma).reduce(function (s, x) { return s + (x.done ? (x.amount || 0) : 0); }, 0);
+    return ma.done ? depositTotal(acc, ma) : 0;
+  }
+  function accountFullyDone(acc, ma) {
+    if (acc && acc.source === "c") return activeItems(ma).every(function (x) { return x.done; });
+    return !!ma.done;
+  }
   function findAccount(id) { for (var i = 0; i < state.accounts.length; i++) if (state.accounts[i].id === id) return state.accounts[i]; return null; }
   function walletAllocated(month, src) {
     return state.accounts.filter(function (a) { return a.source === src; })
@@ -529,7 +558,7 @@
         w = { m: { amount: prev.wallets.m.amount }, f: { amount: prev.wallets.f.amount } };
         state.accounts.forEach(function (a) {
           var pa = prev.acc && prev.acc[a.id];
-          acc[a.id] = { items: (pa ? pa.items : []).map(function (it) { return { id: uid(), name: it.name, amount: it.amount, memo: it.memo || "" }; }), done: false, doneAt: null };
+          acc[a.id] = { items: (pa ? pa.items : []).map(function (it) { return { id: uid(), name: it.name, amount: it.amount, memo: it.memo || "", done: false, skip: false }; }), done: false, doneAt: null };
         });
       }
       state.months[key] = { wallets: w, acc: acc };
@@ -544,7 +573,7 @@
 
     var incM = c.wallets.m.amount || 0, incF = c.wallets.f.amount || 0, incTotal = incM + incF;
     var allocTotal = state.accounts.reduce(function (s, a) { return s + depositTotal(a, monthAcc(c, a.id)); }, 0);
-    var doneTotal = state.accounts.reduce(function (s, a) { var ma = monthAcc(c, a.id); return s + (ma.done ? depositTotal(a, ma) : 0); }, 0);
+    var doneTotal = state.accounts.reduce(function (s, a) { return s + accountDone(a, monthAcc(c, a.id)); }, 0);
     var left = incTotal - allocTotal;
 
     $("incomeTotal").textContent = comma(incTotal);
@@ -560,7 +589,7 @@
     if (shortM > 0) nw.innerHTML += noteHTML("warn", svgAlert(), "♂の財布は入金予定が <b>" + yen(shortM) + "</b> オーバーしています。");
     if (shortF > 0) nw.innerHTML += noteHTML("warn", svgAlert(), "♀の財布は入金予定が <b>" + yen(shortF) + "</b> オーバーしています。");
     var anyAcc = state.accounts.length > 0;
-    var allDone = anyAcc && state.accounts.every(function (a) { return monthAcc(c, a.id).done; });
+    var allDone = anyAcc && state.accounts.every(function (a) { return accountFullyDone(a, monthAcc(c, a.id)); });
     if (allDone && shortM <= 0 && shortF <= 0) nw.innerHTML += noteHTML("done", svgHeart(), "今月の入金、ぜんぶ完了！おつかれさま 🌸");
 
     renderWallets(c, incM, incF);
@@ -616,11 +645,20 @@
 
   function accountCard(c, a) {
     var ma = monthAcc(c, a.id);
+    var perItem = (a.source === "c");
     var rawSum = itemsSum(ma);
     var total = depositTotal(a, ma);
     var open = !!openAccts[a.id];
+    var fullyDone = accountFullyDone(a, ma);
     var el = document.createElement("div");
-    el.className = "acct-card" + (ma.done ? " done" : "") + (open ? " open" : "");
+    el.className = "acct-card" + (fullyDone ? " done" : "") + (open ? " open" : "");
+
+    var pillCls = "todo", pillHTML = "未入金";
+    if (perItem) {
+      var act0 = activeItems(ma), doneCnt = act0.filter(function (x) { return x.done; }).length;
+      if (act0.length > 0 && doneCnt === act0.length) { pillCls = "ok"; pillHTML = svgCheck() + "入金ずみ"; }
+      else if (doneCnt > 0) { pillCls = "todo"; pillHTML = doneCnt + "/" + act0.length + " 入金"; }
+    } else if (ma.done) { pillCls = "ok"; pillHTML = svgCheck() + "入金ずみ"; }
 
     var head = document.createElement("div");
     head.className = "ac-head";
@@ -629,11 +667,15 @@
       '<div class="ac-name"><div class="n"></div><div class="sub"></div></div>' +
       '<div class="ac-right">' +
         '<div class="ac-amt"><span class="yen">¥</span>' + comma(total) + '</div>' +
-        '<div class="ac-pill ' + (ma.done ? "ok" : "todo") + '">' + (ma.done ? svgCheck() + "入金ずみ" : "未入金") + '</div>' +
+        '<div class="ac-pill ' + pillCls + '">' + pillHTML + '</div>' +
       '</div>' +
       '<div class="ac-arrow">›</div>';
     head.querySelector(".n").textContent = a.name;
-    head.querySelector(".ac-name .sub").textContent = (a.optional ? "任意入金 ・ " : "") + (ma.items.length) + "件の内訳" + (ma.done && ma.doneAt ? " ・ " + fmtDT(ma.doneAt) + " 入金" : "");
+    var skipCnt = (ma.items || []).filter(function (x) { return x.skip; }).length;
+    var subTxt = (a.optional ? "任意入金 ・ " : "") + ma.items.length + "件の内訳";
+    if (perItem && skipCnt > 0) subTxt += " ・ " + skipCnt + "件おやすみ";
+    if (!perItem && ma.done && ma.doneAt) subTxt += " ・ " + fmtDT(ma.doneAt) + " 入金";
+    head.querySelector(".ac-name .sub").textContent = subTxt;
     head.addEventListener("click", function () { openAccts[a.id] = !openAccts[a.id]; render(); });
     el.appendChild(head);
 
@@ -646,40 +688,62 @@
         mb.querySelector("span").textContent = a.memo;
         body.appendChild(mb);
       }
-      var ih = document.createElement("div"); ih.className = "items-h"; ih.textContent = "内訳（この口座に入れるもの）";
+      var ih = document.createElement("div"); ih.className = "items-h"; ih.textContent = perItem ? "内訳（項目ごとに入金・今月なし）" : "内訳（この口座に入れるもの）";
       body.appendChild(ih);
       if (ma.items.length === 0) {
         var em = document.createElement("div"); em.className = "item-empty"; em.textContent = "まだ内訳がありません。下から追加してください。";
         body.appendChild(em);
       }
-      ma.items.forEach(function (it) {
-        var row = document.createElement("div"); row.className = "item-row";
-        row.innerHTML = '<div class="ir-main"><span class="in"></span><span class="im"></span></div><span class="ia"><span class="yen">¥</span>' + comma(it.amount) + '</span>';
-        row.querySelector(".in").textContent = it.name;
-        var im = row.querySelector(".im");
-        if (it.memo) im.textContent = it.memo; else im.style.display = "none";
-        row.addEventListener("click", function () { openItemSheet(a.id, it.id); });
-        body.appendChild(row);
-      });
+
+      if (perItem) {
+        ma.items.forEach(function (it) {
+          var row = document.createElement("div");
+          row.className = "citem" + (it.done ? " done" : "") + (it.skip ? " skip" : "");
+          var actionsHTML = it.skip
+            ? '<button class="ci-btn skip-btn on">今月はなし（戻す）</button>'
+            : '<button class="ci-btn done-btn">' + (it.done ? svgCheck() + "入金ずみ" : svgDeposit() + "入金した") + '</button><button class="ci-btn skip-btn">今月なし</button>';
+          row.innerHTML =
+            '<div class="ci-top"><div class="ir-main"><span class="in"></span><span class="im"></span></div><span class="ia"><span class="yen">¥</span>' + comma(it.amount) + '</span></div>' +
+            '<div class="ci-actions">' + actionsHTML + '</div>';
+          row.querySelector(".in").textContent = it.name;
+          var im = row.querySelector(".im"); if (it.memo) im.textContent = it.memo; else im.style.display = "none";
+          row.querySelector(".ci-top").addEventListener("click", function () { openItemSheet(a.id, it.id); });
+          var db = row.querySelector(".done-btn"); if (db) db.addEventListener("click", function (ev) { ev.stopPropagation(); it.done = !it.done; save(); render(); });
+          row.querySelector(".skip-btn").addEventListener("click", function (ev) { ev.stopPropagation(); it.skip = !it.skip; if (it.skip) it.done = false; save(); render(); });
+          body.appendChild(row);
+        });
+      } else {
+        ma.items.forEach(function (it) {
+          var row = document.createElement("div"); row.className = "item-row";
+          row.innerHTML = '<div class="ir-main"><span class="in"></span><span class="im"></span></div><span class="ia"><span class="yen">¥</span>' + comma(it.amount) + '</span>';
+          row.querySelector(".in").textContent = it.name;
+          var im2 = row.querySelector(".im");
+          if (it.memo) im2.textContent = it.memo; else im2.style.display = "none";
+          row.addEventListener("click", function () { openItemSheet(a.id, it.id); });
+          body.appendChild(row);
+        });
+      }
+
       var addi = document.createElement("button"); addi.className = "add-item";
       addi.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>内訳を追加';
       addi.addEventListener("click", function () { openItemSheet(a.id, null); });
       body.appendChild(addi);
 
-      if (a.round1000 && total !== rawSum) {
-        var dn = document.createElement("div"); dn.className = "deposit-note";
-        dn.innerHTML = "内訳合計 <b>" + yen(rawSum) + "</b> → ATM入金 <b>" + yen(total) + "</b><br>（1000円単位に切り上げ）";
-        body.appendChild(dn);
+      if (!perItem) {
+        if (a.round1000 && total !== rawSum) {
+          var dn = document.createElement("div"); dn.className = "deposit-note";
+          dn.innerHTML = "内訳合計 <b>" + yen(rawSum) + "</b> → ATM入金 <b>" + yen(total) + "</b><br>（1000円単位に切り上げ）";
+          body.appendChild(dn);
+        }
+        var actw = document.createElement("div"); actw.className = "ac-actions";
+        if (ma.done && ma.doneAt) { var da = document.createElement("div"); da.className = "doneat"; da.textContent = fmtDT(ma.doneAt) + " に入金しました"; actw.appendChild(da); }
+        var btn = document.createElement("button");
+        btn.className = "check " + (ma.done ? "ok" : "todo");
+        btn.innerHTML = ma.done ? (svgCheck() + "入金ずみ（取り消す）") : (svgDeposit() + "入金した！");
+        btn.addEventListener("click", function () { ma.done = !ma.done; ma.doneAt = ma.done ? Date.now() : null; save(); render(); });
+        actw.appendChild(btn);
+        body.appendChild(actw);
       }
-
-      var act = document.createElement("div"); act.className = "ac-actions";
-      if (ma.done && ma.doneAt) { var da = document.createElement("div"); da.className = "doneat"; da.textContent = fmtDT(ma.doneAt) + " に入金しました"; act.appendChild(da); }
-      var btn = document.createElement("button");
-      btn.className = "check " + (ma.done ? "ok" : "todo");
-      btn.innerHTML = ma.done ? (svgCheck() + "入金ずみ（取り消す）") : (svgDeposit() + "入金した！");
-      btn.addEventListener("click", function () { ma.done = !ma.done; ma.doneAt = ma.done ? Date.now() : null; save(); render(); });
-      act.appendChild(btn);
-      body.appendChild(act);
       el.appendChild(body);
     }
     return el;
