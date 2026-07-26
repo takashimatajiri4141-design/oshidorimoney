@@ -249,10 +249,21 @@
   @media (prefers-color-scheme: dark) { .btn.del { color: #F09B98; } }
 
   /* settings overlay */
-  .settings-scrim { position: fixed; inset: 0; background: rgba(40,25,35,.4); opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 45; }
-  .settings-scrim.show { opacity: 1; pointer-events: auto; }
-  .settings { position: fixed; top: 0; right: 0; bottom: 0; width: 100%; max-width: 480px; z-index: 48; background: var(--bg); transform: translateX(100%); transition: transform .3s cubic-bezier(.3,1,.4,1); overflow-y: auto; padding: calc(16px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom)); box-shadow: -8px 0 30px rgba(0,0,0,.15); }
-  .settings.show { transform: translateX(0); }
+  .settings-scrim, .page-scrim { position: fixed; inset: 0; background: rgba(40,25,35,.4); opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 45; }
+  .settings-scrim.show, .page-scrim.show { opacity: 1; pointer-events: auto; }
+  .settings, .page { position: fixed; top: 0; right: 0; bottom: 0; width: 100%; max-width: 480px; z-index: 48; background: var(--bg); transform: translateX(100%); transition: transform .3s cubic-bezier(.3,1,.4,1); overflow-y: auto; padding: calc(16px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom)); box-shadow: -8px 0 30px rgba(0,0,0,.15); }
+  .settings.show, .page.show { transform: translateX(0); }
+
+  .menu-scrim { position: fixed; inset: 0; background: rgba(40,25,35,.45); backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 55; }
+  .menu-scrim.show { opacity: 1; pointer-events: auto; }
+  .menu { position: fixed; left: 0; right: 0; bottom: 0; z-index: 58; background: var(--surface); border-radius: 26px 26px 0 0; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); max-width: 480px; margin: 0 auto; transform: translateY(110%); transition: transform .32s cubic-bezier(.3,1,.4,1); box-shadow: 0 -8px 30px rgba(0,0,0,.18); }
+  .menu.show { transform: translateY(0); }
+  .menu-row { width: 100%; border: none; background: var(--surface-2); border-radius: 14px; padding: 15px 16px; margin-bottom: 9px; display: flex; align-items: center; gap: 13px; cursor: pointer; font-family: var(--font-body); font-weight: 700; font-size: 1rem; color: var(--ink); }
+  .menu-row:active { background: var(--rose-soft); }
+  .menu-row .mi { width: 36px; height: 36px; border-radius: 11px; background: var(--surface); display: grid; place-items: center; flex: none; box-shadow: var(--shadow-sm); }
+  .menu-row .mi svg { width: 20px; height: 20px; color: var(--rose-deep); }
+  .menu-row .ml { flex: 1; text-align: left; }
+  .menu-row .mc { color: var(--ink-soft); font-size: 1.1rem; }
   .set-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
   .set-top .set-back { border: none; background: none; color: var(--rose); font-family: var(--font-body); font-weight: 700; font-size: .95rem; cursor: pointer; padding: 6px 4px; display: flex; align-items: center; gap: 3px; }
   .set-top h2 { font-family: var(--font-round); font-size: 1.15rem; margin: 0; font-weight: 700; }
@@ -288,8 +299,8 @@
       </div>
       <h1>おしどりの財布</h1>
     </div>
-    <button class="gear" id="openSettings" aria-label="口座の設定">
-      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <button class="gear" id="openMenu" aria-label="メニュー">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
     </button>
   </div>
 
@@ -317,22 +328,7 @@
   <div class="section-head"><h2>口座ごとの入金</h2></div>
   <div id="groups"></div>
 
-  <div class="section-head">
-    <h2>ブックマーク <span class="tag" id="bmCount">0件</span></h2>
-    <button class="add-btn teal" id="addBm">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      追加
-    </button>
-  </div>
-  <div class="bm-list" id="bmList"></div>
-
-  <div class="section-head">
-    <h2>月ごとのうつり変わり</h2>
-    <span class="tag" style="font-size:.68rem;color:var(--ink-soft);background:var(--surface);padding:2px 8px;border-radius:99px;box-shadow:var(--shadow-sm);">夫婦会議の材料</span>
-  </div>
-  <div class="card" id="graphBox"></div>
-
-  <div class="footer-tip">口座をタップで開くと内訳。⚙で口座を登録・編集。<br>データはこのiPhoneの中だけに保存されます。</div>
+  <div class="footer-tip">口座をタップで開くと内訳。右上の ☰ から 口座設定・ブックマーク・集計グラフ へ。<br>データはこのiPhoneの中だけに保存されます。</div>
 </div>
 
 <div class="settings-scrim" id="setScrim"></div>
@@ -344,6 +340,35 @@
   <p class="set-desc">ここで銀行・口座を登録します。毎月の金額の内訳（支払い）は、メイン画面で口座を開いて設定します。</p>
   <div id="setList"></div>
   <button class="btn primary set-add" id="setAdd">＋ 口座を追加</button>
+</div>
+
+<div class="page-scrim" id="bmScrim"></div>
+<div class="page" id="bmPage">
+  <div class="set-top">
+    <button class="set-back" id="bmClose">‹ もどる</button>
+    <h2>ブックマーク <span class="tag" id="bmCount" style="font-size:.68rem;color:var(--ink-soft);background:var(--surface);padding:2px 8px;border-radius:99px;box-shadow:var(--shadow-sm);font-weight:600;">0件</span></h2>
+  </div>
+  <p class="set-desc">ボーナス払いの確認など、よく見るページを登録できます。タップで開きます。</p>
+  <div class="bm-list" id="bmList"></div>
+  <button class="btn primary set-add" id="addBm">＋ ブックマークを追加</button>
+</div>
+
+<div class="page-scrim" id="graphScrim"></div>
+<div class="page" id="graphPage">
+  <div class="set-top">
+    <button class="set-back" id="graphClose">‹ もどる</button>
+    <h2>集計グラフ</h2>
+  </div>
+  <p class="set-desc">月ごとのうつり変わり。入金額の推移を、夫婦会議の材料に。</p>
+  <div class="card" id="graphBox"></div>
+</div>
+
+<div class="menu-scrim" id="menuScrim"></div>
+<div class="menu" id="menu">
+  <div class="grip"></div>
+  <button class="menu-row" data-open="settings"><span class="mi"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="ml">口座の設定</span><span class="mc">›</span></button>
+  <button class="menu-row" data-open="bm"><span class="mi"><svg viewBox="0 0 24 24" fill="none"><path d="M9 15l6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12.5l-1.7 1.7a3 3 0 0 0 4.2 4.2l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.5 11.5l1.7-1.7a3 3 0 0 0-4.2-4.2l-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="ml">ブックマーク</span><span class="mc">›</span></button>
+  <button class="menu-row" data-open="graph"><span class="mi"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="ml">集計グラフ</span><span class="mc">›</span></button>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -749,6 +774,12 @@
   // ---- settings screen ----
   function openSettings() { renderSettings(); $("setScrim").classList.add("show"); $("settings").classList.add("show"); }
   function closeSettings() { $("setScrim").classList.remove("show"); $("settings").classList.remove("show"); }
+  function openMenu() { $("menuScrim").classList.add("show"); $("menu").classList.add("show"); }
+  function closeMenu() { $("menuScrim").classList.remove("show"); $("menu").classList.remove("show"); }
+  function openBookmarks() { renderBookmarks(); $("bmScrim").classList.add("show"); $("bmPage").classList.add("show"); }
+  function closeBookmarks() { $("bmScrim").classList.remove("show"); $("bmPage").classList.remove("show"); }
+  function openGraph() { renderGraph(); $("graphScrim").classList.add("show"); $("graphPage").classList.add("show"); }
+  function closeGraph() { $("graphScrim").classList.remove("show"); $("graphPage").classList.remove("show"); }
   function renderSettings() {
     var host = $("setList"); host.innerHTML = "";
     if (state.accounts.length === 0) host.innerHTML = '<div class="set-empty">まだ口座がありません。<br>下の「＋口座を追加」から登録してください。</div>';
@@ -903,9 +934,20 @@
 
   $("cancelBtn").addEventListener("click", closeSheet);
   $("scrim").addEventListener("click", closeSheet);
-  $("openSettings").addEventListener("click", openSettings);
+  $("openMenu").addEventListener("click", openMenu);
+  $("menuScrim").addEventListener("click", closeMenu);
+  Array.prototype.forEach.call(document.querySelectorAll("#menu .menu-row"), function (b) {
+    b.addEventListener("click", function () {
+      var t = b.getAttribute("data-open"); closeMenu();
+      if (t === "settings") openSettings(); else if (t === "bm") openBookmarks(); else if (t === "graph") openGraph();
+    });
+  });
   $("setClose").addEventListener("click", closeSettings);
   $("setScrim").addEventListener("click", closeSettings);
+  $("bmClose").addEventListener("click", closeBookmarks);
+  $("bmScrim").addEventListener("click", closeBookmarks);
+  $("graphClose").addEventListener("click", closeGraph);
+  $("graphScrim").addEventListener("click", closeGraph);
   $("setAdd").addEventListener("click", function () { openAccountSheet(null, "f"); });
   $("addBm").addEventListener("click", function () { openBookmarkSheet(null); });
   $("prevM").addEventListener("click", function () { shiftMonth(-1); });
