@@ -361,7 +361,8 @@
 <script>
 (function () {
   "use strict";
-  var KEY = "oshidori_v3";
+  var KEY = "oshidori";
+  var LEGACY_KEYS = ["oshidori_v3", "oshidori_v2"];
   var yen = function (n) { return "¥" + (n || 0).toLocaleString("ja-JP"); };
   var comma = function (n) { return (n || 0).toLocaleString("ja-JP"); };
   var $ = function (id) { return document.getElementById(id); };
@@ -369,21 +370,31 @@
   var WSYM = { m: "♂", f: "♀" };
   var SRC_SYM = { f: "♀", m: "♂", c: "◇" };
   var GROUP_TITLE = { f: "の財布 から", m: "の財布 から", c: "どちらでもない（余裕があれば）" };
-  var destChips = ["群馬銀行", "ゆうちょ銀行", "東和銀行", "三井住友銀行", "クレジットカード", "貯金"];
-  var itemChips = ["家賃・住宅ローン", "車の保険", "生活費", "光熱費", "通信費", "積立", "ローン返済"];
   var ICONS = ["🏦", "🏣", "🐖", "💰", "💳", "🏠", "💡", "📱", "🚗", "🎓", "🛡️", "🍚", "👶", "⛽", "🎁", "⭐", "❤️", "✈️"];
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function uid() { return "id" + Math.floor((performance.now() % 1) * 1e9) + "_" + (uid._c = (uid._c || 0) + 1); }
+  function uid() {
+    try { if (window.crypto && crypto.randomUUID) return "id-" + crypto.randomUUID(); } catch (e) {}
+    uid._c = (uid._c || 0) + 1;
+    return "id-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e12).toString(36) + "-" + uid._c;
+  }
   function ymNow() { var d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1); }
   function fmtDT(ts) { if (!ts) return ""; var d = new Date(ts); var mm = ("0" + d.getMinutes()).slice(-2); return (d.getMonth() + 1) + "月" + d.getDate() + "日 " + d.getHours() + ":" + mm; }
 
   var state = load();
   var graphMode = "wallet";
   var openAccts = {};
+  save(); // ロード時のID修復・データ移行を確実に保存する
 
   function load() {
     try { var raw = localStorage.getItem(KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) {}
+    // 以前のバージョンで保存したデータがあれば、そのまま引き継ぐ（データを失わない）
+    for (var li = 0; li < LEGACY_KEYS.length; li++) {
+      try {
+        var lraw = localStorage.getItem(LEGACY_KEYS[li]);
+        if (lraw) { var ls = migrate(JSON.parse(lraw)); try { localStorage.setItem(KEY, JSON.stringify(ls)); } catch (e2) {} return ls; }
+      } catch (e3) {}
+    }
     var m = ymNow();
     var a1 = uid(), a2 = uid();
     var s = {
@@ -404,9 +415,59 @@
     return s;
   }
   function migrate(s) {
+    if (!s || typeof s !== "object") s = {};
     if (!s.accounts) s.accounts = [];
     if (!s.bookmarks) s.bookmarks = [];
     if (!s.months) s.months = {};
+    if (!s.current) s.current = ymNow();
+    s.accounts.forEach(function (a) {
+      if (typeof a.optional === "undefined") a.optional = false;
+      if (typeof a.memo === "undefined") a.memo = "";
+      if (typeof a.round1000 === "undefined") a.round1000 = false;
+      if (!a.icon) a.icon = "🏦";
+      if (!a.source) a.source = "f";
+    });
+    Object.keys(s.months).forEach(function (mk) {
+      var mm = s.months[mk];
+      if (!mm.wallets) mm.wallets = { m: { amount: 0 }, f: { amount: 0 } };
+      if (!mm.acc) mm.acc = {};
+      Object.keys(mm.acc).forEach(function (ak) {
+        var ma = mm.acc[ak];
+        if (!ma.items) ma.items = [];
+        ma.items.forEach(function (it) { if (typeof it.memo === "undefined") it.memo = ""; });
+      });
+    });
+    return repairIds(s);
+  }
+
+  // 旧バージョンのID生成の不具合で重複したIDを、一意なIDに振り直して修復する
+  function repairIds(s) {
+    var seen = {}, dup = false;
+    s.accounts.forEach(function (a) { if (!a.id || Object.prototype.hasOwnProperty.call(seen, a.id)) dup = true; seen[a.id] = true; });
+    if (dup) {
+      var remap = [];
+      s.accounts.forEach(function (a) { var nu = uid(); remap.push([a.id, nu]); a.id = nu; });
+      Object.keys(s.months).forEach(function (mk) {
+        var oldAcc = s.months[mk].acc || {}, newAcc = {}, consumed = {};
+        remap.forEach(function (r) {
+          var oldId = r[0], nu = r[1];
+          if (!consumed[oldId] && oldAcc[oldId]) { newAcc[nu] = oldAcc[oldId]; consumed[oldId] = true; }
+          else { newAcc[nu] = { items: [], done: false, doneAt: null }; }
+        });
+        s.months[mk].acc = newAcc;
+      });
+    }
+    // 内訳(item)のIDも、欠落・重複があれば振り直す（外部参照がないので安全）
+    var itemSeen = {};
+    Object.keys(s.months).forEach(function (mk) {
+      var acc = s.months[mk].acc || {};
+      Object.keys(acc).forEach(function (ak) {
+        (acc[ak].items || []).forEach(function (it) {
+          if (!it.id || Object.prototype.hasOwnProperty.call(itemSeen, it.id)) it.id = uid();
+          itemSeen[it.id] = true;
+        });
+      });
+    });
     return s;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -738,12 +799,11 @@
         '<button type="button" data-s="f"><span class="s">♀</span>財布</button>' +
         '<button type="button" data-s="m"><span class="s">♂</span>財布</button>' +
         '<button type="button" data-s="c"><span class="s">◇</span>どちらでも</button></div></div>' +
-      '<div class="field"><label>口座（銀行・封筒）の名前</label><input type="text" id="fName" placeholder="例：群馬銀行" autocomplete="off"><div class="chips" id="chips"></div></div>' +
+      '<div class="field"><label>口座（銀行・封筒）の名前</label><input type="text" id="fName" placeholder="例：群馬銀行" autocomplete="off"></div>' +
       '<div class="field"><label>アイコン</label><div class="icons" id="iconGrid"></div></div>' +
       '<div class="field"><label>メモ（この口座について・任意）</label><textarea id="fMemo" rows="2" placeholder="例：住宅ローンとカード引落をまとめる"></textarea></div>' +
       '<div class="field"><div class="switch" id="roundSw"><div class="track"><div class="knob"></div></div><div class="lbl">ATMで入金（1000円単位）<small>内訳の合計を1000円単位に切り上げて入金</small></div></div></div>' +
       '<div class="field"><div class="switch" id="optSw"><div class="track"><div class="knob"></div></div><div class="lbl">入金が任意<small>余裕があれば入金する口座</small></div></div></div>';
-    buildChips("chips", destChips, "fName");
     buildIcons();
     $("fName").value = a ? a.name : "";
     $("fMemo").value = a ? (a.memo || "") : "";
@@ -760,11 +820,10 @@
     var it = itemId ? findItem(accId, itemId) : null;
     $("sheetTitle").textContent = (itemId ? "内訳を編集" : "内訳を追加") + "（" + (acc ? acc.name : "") + "）";
     $("sheetBody").innerHTML =
-      '<div class="field"><label>内訳の名前（何の支払いか）</label><input type="text" id="fName" placeholder="例：車の保険" autocomplete="off"><div class="chips" id="chips"></div></div>' +
+      '<div class="field"><label>内訳の名前（何の支払いか）</label><input type="text" id="fName" placeholder="例：車の保険" autocomplete="off"></div>' +
       '<div class="field"><label>金額（1円単位でOK）</label><input type="text" id="fAmt" class="amt-input" inputmode="numeric" placeholder="0">' +
         (acc && acc.round1000 ? '<div class="hint">実際にATMで入れる額は、この口座の内訳合計を1000円単位に切り上げて計算されます</div>' : '') + '</div>' +
       '<div class="field"><label>メモ（任意・翌月にも引き継がれます）</label><textarea id="fMemo" rows="2" placeholder="例：ボーナス月は増額／年払い"></textarea></div>';
-    buildChips("chips", itemChips, "fName");
     $("fName").value = it ? it.name : "";
     $("fAmt").value = it ? comma(it.amount) : "";
     $("fMemo").value = it ? (it.memo || "") : "";
@@ -785,10 +844,6 @@
     showSheet();
   }
 
-  function buildChips(hostId, arr, targetId) {
-    var host = $(hostId); host.innerHTML = "";
-    arr.forEach(function (t) { var b = document.createElement("button"); b.className = "chip"; b.type = "button"; b.textContent = t; b.addEventListener("click", function () { $(targetId).value = t; }); host.appendChild(b); });
-  }
   function buildIcons() {
     var ig = $("iconGrid"); ig.innerHTML = "";
     ICONS.forEach(function (em) {
